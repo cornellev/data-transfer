@@ -1,0 +1,15 @@
+{
+  "namespace": "raspi.avro",
+  "type": "record",
+  "name": "SensorData",
+  "fields": [
+    { "name": "gps_lat", "type": ["double", "null"] },
+    { "name": "gps_long", "type": ["double", "null"] },
+    { "name": "left_rpm", "type": ["int", "null"] },
+    { "name": "right_rpm", "type": ["int", "null"] },
+    { "name": "x_accel", "type": ["double", "null"] },
+    { "name": "y_accel", "type": ["double", "null"] },
+    { "name": "z_accel", "type": ["double", "null"] },
+    { "name": "temp", "type": ["double", "null"] }
+  ]
+}

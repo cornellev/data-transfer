@@ -5,7 +5,7 @@ Raspi **Sender**: When data is transferred in (via a POST to our Flask REST API)
 
 - `restapi.py` - the flask api for receiving our data
 - `data_encoder.py` - dealing with avro encodings for various data types from raspi
-- `telephone/audio.py` - doing the telephone voice call stuff (just the different schemes of encodings)
+- `telephone/audio.py` - using 16-QAM to modulate avro data into voice call data (.wav)
 - `telephone/sender.py` - pushing the voice call data
 
 
