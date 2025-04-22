@@ -19,7 +19,7 @@ def bits_to_symbols(bitstring):
 
 # Turns a list of 16-QAM points to audio waves 
 def qam_modulate(points, fc=4000, fs=44100, symbol_rate=500):
-    samples_per_point = int (fs / symbol_rate)
+    samples_per_point = int(fs / symbol_rate)
     time = np.linspace(0, 1 / symbol_rate, samples_per_point, endpoint=False)
     audio_wave = []
 
