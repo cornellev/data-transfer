@@ -1,7 +1,7 @@
 import numpy as np 
 from scipy.io.wavfile import write 
 
-# Each 4-bit string maps to a point in the 16-QAM constellation plot
+# Maps each 4-bit string to a point in the 16-QAM constellation plot
 def bits_to_symbols(bitstring):
     qam_map = {
         '0000': -3 - 3j, '0001': -3 - 1j, '0010': -3 + 3j, '0011': -3 + 1j,
