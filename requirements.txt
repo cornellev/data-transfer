@@ -3,3 +3,4 @@ numpy
 scipy
 sounddevice
 avro-python3
+pyaudio
