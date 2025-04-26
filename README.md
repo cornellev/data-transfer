@@ -20,6 +20,10 @@ Laptop **Receiver**: When we receive data, we need to decode it and make a webso
 
 Need to install portaudio from homebrew (mac) in order to build the pyaudio dependency that listens on the computer port for some silly testing purposes. Might not be quite useful/relevant.
 
+### how to run
+
+To run these files individually, we can (not the only way) just do `python -m receiver.telephone.audio_decoder` from the root of this project.
+
 # Error Correction Techniques
 
 Since the system is not perfect even if we are testing completely locally (which should be perfect), we need ways to remedy these error rates.
