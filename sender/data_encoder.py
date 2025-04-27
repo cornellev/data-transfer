@@ -1,20 +1,44 @@
 import io
-import avro.schema
-import avro.io
-
-# Loads and parses an Avro schema from a .avsc (json) file
-def load_avro_schema(path):
-    with open(path, "r") as f: 
-        return avro.schema.parse(f.read())
+from schemas import sensor_data as mavlink 
     
-# Encodes data using an Avro schema into bytes 
-def encode_data (data, schema_path):
-    schema = load_avro_schema(schema_path)
-    writer = avro.io.DatumWriter(schema)
+# Creates a MAVLink connection w/ a dummy IO stream 
+mav = mavlink.MAVLink(io.BytesIO())
 
-    bytes_writer = io.BytesIO()
-    encoder = avro.io.BinaryEncoder(bytes_writer)
+# Encodes data into a MAVLink message and
+def encode_data (data: dict):
+    """
+    Encodes sensor data into a MAVLink message and returns bytes.
 
-    writer.write(data, encoder)
-    return bytes_writer.getvalue()
+    Args:
+        data (dict): Dictionary w/ keys as the different sensors 
+
+    Returns:
+        bytes: Encoded MAVLink packet 
+    """
+
+    gps_lat = data.get("gps_lat", 0.0)
+    gps_long = data.get("gps_long", 0.0)
+    left_rpm = data.get("left_rpm", 0)
+    right_rpm = data.get("right_rpm", 0)
+    x_accel = data.get("x_accel", 0.0)
+    y_accel = data.get("y_accel", 0.0)
+    z_accel = data.get("z_accel", 0.0)
+    temp = data.get("temp", 0.0)
+
+    # Pack into a SENSOR_DATA MAVLink message
+    msg = mav.sensor_data_encode(
+        gps_lat,
+        gps_long,
+        left_rpm,
+        right_rpm,
+        x_accel,
+        y_accel,
+        z_accel,
+        temp
+    )
+
+    # Pack into bytes
+    encoded_bytes = msg.pack(mav)
+
+    return encoded_bytes
 

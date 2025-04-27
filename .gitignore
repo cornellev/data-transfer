@@ -14,5 +14,5 @@ ENV/
 # Audio output 
 *.wav
 
-# Avro-related schema artifacts 
-*.egg-info/
+# Mavlink
+mavlink/

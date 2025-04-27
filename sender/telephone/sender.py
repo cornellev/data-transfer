@@ -1,6 +1,6 @@
 import sounddevice as sd 
 import numpy as np
-from telephone.audio import bits_to_symbols, qam_modulate, create_wav
+from .audio import bits_to_symbols, qam_modulate, create_wav
 
 # Saves and plays an audio file containing the data 
 def process_and_play(avro_bytes):

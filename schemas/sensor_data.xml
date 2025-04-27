@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<mavlink>
+  <version>2</version>
+
+  <messages>
+    <message id="200" name="SENSOR_DATA">
+      <description>Custom sensor data message</description>
+      <field type="double" name="gps_lat">Latitude (deg)</field>
+      <field type="double" name="gps_long">Longitude (deg)</field>
+      <field type="int32_t" name="left_rpm">Left motor RPM</field>
+      <field type="int32_t" name="right_rpm">Right motor RPM</field>
+      <field type="double" name="x_accel">X acceleration (m/s^2)</field>
+      <field type="double" name="y_accel">Y acceleration (m/s^2)</field>
+      <field type="double" name="z_accel">Z acceleration (m/s^2)</field>
+      <field type="double" name="temp">Temperature (deg C)</field>
+    </message>
+  </messages>
+</mavlink>

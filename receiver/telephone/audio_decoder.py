@@ -194,6 +194,10 @@ class BufferedDemodulator:
 
 # Example usage demonstrating the decoder
 if __name__ == "__main__":
+    # Test bitstring
+    test_bits = "10110010101110001111000001101010100010101100010101001100101010100101010101010100010101010001010101010010101010101010101010101010101010101010101010101010101010101010"
+    
+    # Encode using the provided encoder (assuming it's imported)
     from sender.telephone.audio import bits_to_symbols, qam_modulate, create_wav
     fc = 4000
     fs = 44100

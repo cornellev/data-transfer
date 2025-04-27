@@ -1,13 +1,13 @@
 # Data Transfer Protocols
+
 A repository for managing effective, efficient transmission of data from the vehicle to the control operations team for competition environments. We are planning to use the same protocol of voice calls, SMS, and StarLink.
 
-Raspi **Sender**: When data is transferred in (via a POST to our Flask REST API), we encode it using Apache Avro (chose this due to its dynamic nature), transform that into audio wav's, send through whatever protocol we designate. Each requires a different feature and thus file. Inside the sender folder
+Raspi **Sender**: When data is transferred in (via a POST to our Flask REST API), we encode it using MAVLink, transform that into audio wav's, send through whatever protocol we designate. Each requires a different feature and thus file. Inside the sender folder
 
 - `restapi.py` - the flask api for receiving our data
-- `data_encoder.py` - dealing with avro encodings for various data types from raspi
-- `telephone/audio.py` - using 16-QAM to modulate avro data into voice call data (.wav)
+- `data_encoder.py` - dealing with MAVLink encodings for various data types from raspi
+- `telephone/audio.py` - using 16-QAM to modulate MAVLink packets into voice call data (.wav)
 - `telephone/sender.py` - pushing the voice call data
-
 
 Laptop **Receiver**: When we receive data, we need to decode it and make a websocket endpoint for the frontend to subscribe to and display received + decoded data. Same features but it is a websocket instead of POST.
 
@@ -34,7 +34,7 @@ flowchart TD
   B --> C["Add Error Correction (reedsolo)"]
   C --> D["Add CRC checksum (crcmod)"]
   D --> E[Modulate with QAM and send over audio]
-  
+
   F[Receive audio signal] --> G[Demodulate back into bits]
   G --> H[Find preamble to align frame]
   H --> I[Check CRC]
@@ -48,11 +48,11 @@ flowchart TD
 
 So we finished implementing the decoder, and wanted to try it out where the encoder writes the bit into wav and let the demodulator do its work. The longer the bits (like 164) the higher the error rate (0.47 for 164 bits). The potential issues could be:
 
-| Cause | Explanation |
-| :--- | :--- |
-| Timing offset | When you generate the wave, each symbol is aligned nicely. But when you read and process it, your sampling may not perfectly align with the symbol center. |
-| Low SNR from normalization | The encoder and decoder normalize independently (based on max value). Small noise or scaling differences can cause misclassification. |
-| Hard decisions | Mapping symbols directly to nearest constellation points is sensitive to small noise. |
-| Filtering artifacts | Your lowpass filter could slightly smear the symbols (especially with Butterworth design). |
+| Cause                      | Explanation                                                                                                                                                |
+| :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Timing offset              | When you generate the wave, each symbol is aligned nicely. But when you read and process it, your sampling may not perfectly align with the symbol center. |
+| Low SNR from normalization | The encoder and decoder normalize independently (based on max value). Small noise or scaling differences can cause misclassification.                      |
+| Hard decisions             | Mapping symbols directly to nearest constellation points is sensitive to small noise.                                                                      |
+| Filtering artifacts        | Your lowpass filter could slightly smear the symbols (especially with Butterworth design).                                                                 |
 
 We proposed a new architecture that combines everything.

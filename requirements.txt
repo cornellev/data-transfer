@@ -4,3 +4,4 @@ scipy
 sounddevice
 avro-python3
 pyaudio
+pymavlink
