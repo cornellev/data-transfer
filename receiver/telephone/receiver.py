@@ -201,45 +201,78 @@ class Receiver:
             self.audio = None
 
 
+from typing import Tuple
+import numpy as np
+from scipy import signal
+
 class SignalDetector:
     """
     Adaptive signal detector for QAM signals.
+    Supports both Butterworth-based and FFT-based bandpass filtering.
     """
-    def __init__(self, alpha=0.01, initial_threshold=0.01):
+    def __init__(self, alpha=0.01, initial_threshold=0.01, use_fft=False):
+        """
+        Args:
+            alpha: Smoothing factor for updating noise floor
+            initial_threshold: Initial energy threshold estimate
+            use_fft: Whether to use FFT-based filtering instead of Butterworth
+        """
         self.noise_floor = initial_threshold
-        self.alpha = alpha  # Learning rate
-        
-    def detect(self, audio_data, fs, fc, bandwidth=1000, threshold_factor=3.0) -> Tuple[bool, np.ndarray]:
-        # Apply bandpass filter
-        filtered = self._apply_bandpass_filter(audio_data, fs, fc, bandwidth)
-        
+        self.alpha = alpha
+        self.use_fft = use_fft
+
+    def detect(
+        self,
+        audio_data: np.ndarray,
+        fs: float,
+        fc: float,
+        bandwidth: float = 1000,
+        threshold_factor: float = 3.0
+    ) -> Tuple[bool, np.ndarray]:
+        """
+        Detect presence of a signal and return whether signal is present and the filtered data.
+        """
+        if self.use_fft:
+            filtered = self._fft_bandpass_filter(audio_data, fs, fc, bandwidth)
+        else:
+            filtered = self._butter_bandpass_filter(audio_data, fs, fc, bandwidth)
+
         # Calculate signal energy
         energy = np.mean(filtered**2)
-        
-        # Update noise floor estimate (when no signal is present)
+
+        # Update noise floor estimate if likely no signal present
         if energy < self.noise_floor * threshold_factor:
             self.noise_floor = (1 - self.alpha) * self.noise_floor + self.alpha * energy
-        
-        # Compare with adaptive threshold
-        return energy > self.noise_floor * threshold_factor, filtered
-    
-    def _apply_bandpass_filter(self, audio_data, fs, fc, bandwidth=1000) -> np.ndarray:
-        """
-        Apply a bandpass filter around the carrier frequency.
-        """
-        # Calculate filter parameters
-        nyquist = fs / 2
-        low = max(0.001, (fc - bandwidth/2) / nyquist)
-        high = min(0.999, (fc + bandwidth/2) / nyquist)
-        
-        # Create bandpass filter
-        b, a = signal.butter(5, [low, high], btype='band')
-        
-        # Apply filter
-        filtered_data = signal.filtfilt(b, a, audio_data)
-        
-        return filtered_data
 
+        signal_present = energy > self.noise_floor * threshold_factor
+        return signal_present, filtered
+
+    def _butter_bandpass_filter(self, audio_data, fs, fc, bandwidth=1000) -> np.ndarray:
+        """
+        Apply a 5th-order Butterworth bandpass filter.
+        """
+        nyquist = fs / 2
+        low = max(0.001, (fc - bandwidth / 2) / nyquist)
+        high = min(0.999, (fc + bandwidth / 2) / nyquist)
+        b, a = signal.butter(5, [low, high], btype='band')
+        return signal.filtfilt(b, a, audio_data)
+
+    def _fft_bandpass_filter(self, audio_data, fs, fc, bandwidth=1000) -> np.ndarray:
+        """
+        Apply bandpass filtering using FFT.
+        """
+        N = len(audio_data)
+        freq_data = np.fft.fft(audio_data)
+        freqs = np.fft.fftfreq(N, d=1/fs)
+
+        # Build mask for desired frequency band
+        mask = np.logical_and(np.abs(freqs) >= (fc - bandwidth / 2),
+                              np.abs(freqs) <= (fc + bandwidth / 2))
+        freq_data[~mask] = 0  # Zero out unwanted frequencies
+
+        # Convert back to time domain
+        filtered = np.fft.ifft(freq_data).real
+        return filtered
 
 class EnhancedReceiver:
     """
@@ -263,7 +296,7 @@ class EnhancedReceiver:
         self.show_snr = show_snr
         
         # Initialize signal detector
-        self.signal_detector = SignalDetector()
+        self.signal_detector = SignalDetector(use_fft=True)
         
         # For calculating SNR
         self.signal_power = 0

@@ -46,6 +46,16 @@ flowchart TD
 
 ### Logging
 
+#### How to denoise for the speaker-microphone demo setup
+
+Right now, in the receiver.py class, we have a SignalDetector class that implements both the Butterworth filter and FFT-based filter to constantly check the receiver input streams and only call the QAM demodulator when it detects valid inputs in the range of our QAM-16 parameters. 
+
+This allows us to pick up data points that are actually relevant instead of just constantly receiving data.
+
+We need better error decoding methods like convolution codes or reedsolo - Ruth will be solving this problem.
+
+#### issues with the decoder
+
 So we finished implementing the decoder, and wanted to try it out where the encoder writes the bit into wav and let the demodulator do its work. The longer the bits (like 164) the higher the error rate (0.47 for 164 bits). The potential issues could be:
 
 | Cause                      | Explanation                                                                                                                                                |

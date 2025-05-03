@@ -13,183 +13,159 @@ from scipy import signal
 
 class QAMDemodulator:
     """
-    16-QAM demodulator that converts modulated signals back to bitstreams.
+    Symbol classifier for 16-QAM signals.
+    Maps complex I/Q samples to 4-bit strings.
     """
-    def __init__(self, carrier_freq=4000, sample_rate=44100, symbol_rate=500):
-        """
-        Initialize the QAM demodulator.
-        
-        Args:
-            carrier_freq: Carrier frequency in Hz
-            sample_rate: Sampling rate in Hz
-            symbol_rate: Symbol rate in symbols per second
-        """
-        self.fc = carrier_freq
-        self.fs = sample_rate
-        self.symbol_rate = symbol_rate
-        self.samples_per_symbol = int(self.fs / self.symbol_rate)
-        
-        # 16-QAM constellation mapping
+    def __init__(self):
+        # 16-QAM constellation
         self.qam_map = {
             (-3, -3): '0000', (-3, -1): '0001', (-3, 3): '0010', (-3, 1): '0011',
             (-1, -3): '0100', (-1, -1): '0101', (-1, 3): '0110', (-1, 1): '0111',
             (3, -3): '1000', (3, -1): '1001', (3, 3): '1010', (3, 1): '1011',
             (1, -3): '1100', (1, -1): '1101', (1, 3): '1110', (1, 1): '1111'
         }
-        
-        # Create reference constellation points
-        self.constellation_points = np.array([complex(i, q) for (i, q) in self.qam_map.keys()])
-        
-    def demodulate_file(self, filename):
+
+        self.constellation_points = np.array(
+            [complex(i, q) for (i, q) in self.qam_map.keys()]
+        )
+        self.inverse_map = {
+            point: bits for point, bits in zip(self.constellation_points, self.qam_map.values())
+        }
+
+    def classify(self, symbol: complex) -> str:
         """
-        Demodulate QAM from a WAV file.
-        
+        Classify a complex symbol to the closest 16-QAM point.
+
         Args:
-            filename: Path to WAV file
-            
+            symbol: complex number (I + jQ)
+
         Returns:
-            Demodulated bitstring
+            4-bit string
         """
-        # Read the WAV file
-        fs, audio_data = read(filename)
-        
-        # Ensure data is float for processing
-        if audio_data.dtype != np.float32:
-            audio_data = audio_data.astype(np.float32)
-            
-        # Normalize if necessary (if data is in int16 format)
-        if np.max(np.abs(audio_data)) > 1.0:
-            audio_data = audio_data / 32768.0
-            
-        return self.demodulate(audio_data)
-    
-    def demodulate(self, audio_signal):
-        """
-        Demodulate 16-QAM signal to bitstring.
-        
-        Args:
-            audio_signal: Audio signal as numpy array
-            
-        Returns:
-            Demodulated bitstring
-        """
-        # Create time base for the entire signal
-        t = np.arange(len(audio_signal)) / self.fs
-        
-        # Generate in-phase and quadrature carriers
-        i_carrier = np.cos(2 * np.pi * self.fc * t)
-        q_carrier = -np.sin(2 * np.pi * self.fc * t)  # Negative sine for quadrature
-        
-        # Demodulate I and Q components
-        i_demod = audio_signal * i_carrier
-        q_demod = audio_signal * q_carrier
-        
-        # Low-pass filter to remove the 2*fc component
-        # Design a lowpass filter with cutoff at symbol_rate
-        nyquist = self.fs / 2
-        cutoff = self.symbol_rate * 1.5  # Slightly higher than symbol rate for good reception
-        b, a = signal.butter(5, cutoff / nyquist)
-        
-        # Apply the filter
-        i_filtered = signal.filtfilt(b, a, i_demod)
-        q_filtered = signal.filtfilt(b, a, q_demod)
-        
-        # Sample at the center of each symbol
-        num_symbols = len(audio_signal) // self.samples_per_symbol
-        i_sampled = np.zeros(num_symbols)
-        q_sampled = np.zeros(num_symbols)
-        
-        for i in range(num_symbols):
-            # Sample near the middle of each symbol period
-            sample_point = i * self.samples_per_symbol + self.samples_per_symbol // 2
-            if sample_point < len(i_filtered):
-                i_sampled[i] = i_filtered[sample_point]
-                q_sampled[i] = q_filtered[sample_point]
-        
-        # Normalization factor (based on the maximum expected constellation value)
-        # Original encoder uses values up to ±3, so we scale accordingly
-        scale_factor = np.max(np.abs(np.concatenate([i_sampled, q_sampled]))) / 3.0
-        if scale_factor > 0:
-            i_sampled = i_sampled / scale_factor
-            q_sampled = q_sampled / scale_factor
-        
-        # Combine into complex numbers
-        received_symbols = i_sampled + 1j * q_sampled
-        
-        # Symbol decision - map each received point to the nearest constellation point
-        decided_bits = []
-        
-        for symbol in received_symbols:
-            # Find the closest constellation point
-            distances = np.abs(self.constellation_points - symbol)
-            closest_idx = np.argmin(distances)
-            closest_point = self.constellation_points[closest_idx]
-            
-            # Map back to bits
-            i_val = int(np.real(closest_point))
-            q_val = int(np.imag(closest_point))
-            bit_value = self.qam_map.get((i_val, q_val), '0000')  # Default to '0000' if not found
-            decided_bits.append(bit_value)
-        
-        # Join all bits together
-        bitstring = ''.join(decided_bits)
-        
-        return bitstring
+        closest_idx = np.argmin(np.abs(self.constellation_points - symbol))
+        closest_point = self.constellation_points[closest_idx]
+        return self.inverse_map[closest_point]
 
 class BufferedDemodulator:
     """
-    Wrapper class to handle audio chunks being sent in as a data stream.
+    Streaming 16-QAM demodulator that processes audio chunks in real-time.
+    Performs carrier mixing, low-pass filtering, and symbol sampling.
     """
-    def __init__(self, carrier_freq=4000, sample_rate=44100, symbol_rate=500):
-        self.qam_demodulator = QAMDemodulator(carrier_freq, sample_rate, symbol_rate)
-        self.buffer = np.array([], dtype=np.float32)
-        self.sample_rate = sample_rate
+    def __init__(self, carrier_freq=4000, sample_rate=44100, symbol_rate=100):
+        self.fc = carrier_freq
+        self.fs = sample_rate
         self.symbol_rate = symbol_rate
-        self.samples_per_symbol = int(sample_rate / symbol_rate)
-        self.total_samples_seen = 0  # To track global time across chunks
+        self.samples_per_symbol = int(self.fs / self.symbol_rate)
 
-    def demodulate(self, digital_signal: np.ndarray) -> list:
-        """
-        Demodulate the digital signal into bits.
-        
-        Args:
-            digital_signal: Digital signal as numpy array (int16)
-            
-        Returns:
-            List of demodulated bits (0 or 1)
-        """
-        # Convert int16 input to float32
-        float_signal = digital_signal.astype(np.float32) / 32768.0
-        
-        # print(f'Received {len(float_signal)} samples')
-        
-        # Append new chunk to buffer
-        self.buffer = np.append(self.buffer, float_signal)
-        
-        bits = []
-        while len(self.buffer) >= self.samples_per_symbol:
-            # Only take exactly one symbol worth of samples at a time
-            symbol_samples = self.buffer[:self.samples_per_symbol]
-            
-            # Process one symbol at a time
-            bitstring = self.qam_demodulator.demodulate(symbol_samples)
-            
-            for bit in bitstring:
-                bits.append(int(bit))
-            
-            # Remove processed samples
-            self.buffer = self.buffer[self.samples_per_symbol:]
-            
-            # Advance sample counter (simulate continuous time)
-            self.total_samples_seen += self.samples_per_symbol
-        
-        # print(f"returning {len(bits)} bits")
-        return bits
+        # Create 16-QAM constellation mapping
+        self.qam_map = {
+            (-3, -3): '0000', (-3, -1): '0001', (-3, 3): '0010', (-3, 1): '0011',
+            (-1, -3): '0100', (-1, -1): '0101', (-1, 3): '0110', (-1, 1): '0111',
+            (3, -3): '1000', (3, -1): '1001', (3, 3): '1010', (3, 1): '1011',
+            (1, -3): '1100', (1, -1): '1101', (1, 3): '1110', (1, 1): '1111'
+        }
+        self.constellation_points = np.array([complex(i, q) for (i, q) in self.qam_map.keys()])
 
-    def reset(self):
-        """Reset the demodulator state."""
+        # Signal buffer
         self.buffer = np.array([], dtype=np.float32)
         self.total_samples_seen = 0
+
+        # Design low-pass filter once (cutoff slightly above symbol rate)
+        nyquist = self.fs / 2
+        cutoff = self.symbol_rate * 1.5 / nyquist
+        self.lpf_b, self.lpf_a = signal.butter(5, cutoff)
+
+        # Filter state across chunks
+        self.i_filter_state = None
+        self.q_filter_state = None
+
+    def reset(self):
+        """Reset internal state for fresh decoding."""
+        self.buffer = np.array([], dtype=np.float32)
+        self.total_samples_seen = 0
+        self.i_filter_state = None
+        self.q_filter_state = None
+
+    def demodulate(self, chunk: np.ndarray) -> list:
+        """
+        Demodulate a chunk of audio samples into bit list.
+
+        Args:
+            chunk: np.ndarray of int16 or float32 audio samples
+
+        Returns:
+            List of recovered bits (as ints 0/1)
+        """
+        # Normalize and convert to float32 if necessary
+        if chunk.dtype != np.float32:
+            chunk = chunk.astype(np.float32)
+            chunk /= np.max(np.abs(chunk))  # normalize to [-1, 1]
+
+        # Append to rolling buffer
+        self.buffer = np.append(self.buffer, chunk)
+
+        bits_out = []
+
+        # Process full symbol-sized windows
+        while len(self.buffer) >= self.samples_per_symbol:
+            # Take one full symbol window
+            symbol_samples = self.buffer[:self.samples_per_symbol]
+
+            # Time vector for this symbol, using global sample index
+            t_offset = self.total_samples_seen
+            t = (np.arange(self.samples_per_symbol) + self.total_samples_seen) / self.fs
+
+            # Mix down to baseband
+            i_carrier = np.cos(2 * np.pi * self.fc * t)
+            q_carrier = -np.sin(2 * np.pi * self.fc * t)
+            i_mixed = symbol_samples * i_carrier
+            q_mixed = symbol_samples * q_carrier
+
+            # Apply low-pass filter (preserving state)
+            i_filtered, self.i_filter_state = signal.lfilter(
+                self.lpf_b, self.lpf_a, i_mixed, zi=self._init_filter_state(self.i_filter_state, i_mixed))
+            q_filtered, self.q_filter_state = signal.lfilter(
+                self.lpf_b, self.lpf_a, q_mixed, zi=self._init_filter_state(self.q_filter_state, q_mixed))
+
+            # Sample at center
+            mid = self.samples_per_symbol // 2
+            i_sample = i_filtered[mid]
+            q_sample = q_filtered[mid]
+            received_symbol = complex(i_sample, q_sample)
+
+            # Normalize to constellation scale (max ±3)
+            scale = max(np.abs(i_sample), np.abs(q_sample)) / 3.0
+            if scale > 0:
+                received_symbol /= scale
+
+            # Classify symbol to nearest constellation point
+            nearest_idx = np.argmin(np.abs(self.constellation_points - received_symbol))
+            symbol_point = self.constellation_points[nearest_idx]
+            bits = self.qam_map[(int(np.real(symbol_point)), int(np.imag(symbol_point)))]
+            bits_out.extend([int(b) for b in bits])
+
+            # Update state
+            self.buffer = self.buffer[self.samples_per_symbol:]
+            self.total_samples_seen += self.samples_per_symbol
+
+        return bits_out
+
+    def _init_filter_state(self, previous_state, signal_chunk):
+        """
+        Initialize or propagate filter state for streaming `lfilter`.
+
+        Args:
+            previous_state: previous zi (or None)
+            signal_chunk: current signal to be filtered
+
+        Returns:
+            zi for lfilter
+        """
+        if previous_state is not None:
+            return previous_state
+        zi = signal.lfilter_zi(self.lpf_b, self.lpf_a) * signal_chunk[0]
+        return zi
+
 
 
 # Example usage demonstrating the decoder
@@ -201,11 +177,29 @@ if __name__ == "__main__":
     fs = 44100
     symbol_rate = 100
     
+    def calculate_error_rate(original_bits, received_bits):
+        """
+        Calculate the error rate between the original bits and the received bits.
+        """
+        min_length = min(len(original_bits), len(received_bits))
+        errors = sum(1 for a, b in zip(original_bits[:min_length], received_bits[:min_length]) if a != b)
+        ber = errors / min_length
+
+        # Print results
+        print(f"Original bits length: {len(original_bits)}")
+        print(f"Recovered bits length: {len(received_bits)}")
+        print(f"Compared first {min_length} bits")
+        print(f"Bit errors: {errors}")
+        print(f"Bit Error Rate (BER): {ber:.6f}")
+        
+        return ber
+    
     def test_wav_file():
         # Test bitstring
         # test_bits = "1010110010110010101110001111000001101010100010101100010101001100101010100101010101010100010101010001010101010010101010101100101011100011110000011010101000101011000101010011001010101001010101010101000101010100010110010101110001111000001101010100010101100010101001100101010100101010101010100010101010001010101010010101010101011001010111000111100000110101010001010110001010100110010101010010101010101010001010101000101010101001010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011100011110000011010101000101011000101010011001010101001010101010101000101010100010101010100101010101010110110010101110001111000001101010100010101100010101001100101010100101010101010100010101010001010101010010101010101010101010101010101010101010101010101010101010101010010101010101010101010101010101010101010101010101011001010111000111100000110101010001010110001010100110010101010010101010101010001010101000101010101001010101010110010101110001111000001101010100010101100010101001100101010100101010101010100010101010001010101010010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010"
 
-        message = "I'd be happy to help you convert that hexadecimal representation back into binary bits (0s and 1s)."
+        # message = "I'd be happy to help you convert that hexadecimal representation back into binary bits (0s and 1s)."
+        message = "hello"
     
         # turn this message into bits in a string format
         bits = ''.join(format(ord(c), '08b') for c in message)
@@ -234,7 +228,9 @@ if __name__ == "__main__":
         print(f"Bit error rate: {ber:.6f} ({errors} errors out of {len(test_bits)} bits)")
     
     def test_buffered_demodulator():
-        test_bits = "1010110010110010101110001111000001101010100010101100010101001100" * 10  # make it a bit longer
+        # test_bits = "1010110010110010101110001111000001101010100010101100010101001100" * 10  # make it a bit longer
+        test_bits = "0101101010101000101101010101010101010101010101010101010101010101010101010101010101010101010101010101010101"
+        # test_bits = "01010101100101010101001101001110101010101010010110101010101010101010101010101010101"
 
         # Encode: bits -> symbols -> modulate -> audio wave
         symbols = bits_to_symbols(test_bits)
@@ -243,6 +239,10 @@ if __name__ == "__main__":
         # Simulate 16-bit audio format (as if from microphone)
         audio_wave = audio_wave / np.max(np.abs(audio_wave))
         audio_wave_int16 = (audio_wave * 32767).astype(np.int16)
+        
+        with open("wave_raw_right.txt", "w") as f:
+            for i in range(len(audio_wave_int16)):
+                f.write(str(audio_wave_int16[i]) + "\n")
 
         # Initialize enhanced demodulator
         enhanced_demod = BufferedDemodulator(carrier_freq=fc, sample_rate=fs, symbol_rate=symbol_rate)
@@ -265,18 +265,15 @@ if __name__ == "__main__":
 
         # Join recovered bits into a string
         recovered_bitstring = ''.join(str(bit) for bit in recovered_bits)
+        
+        # print out the two bitstrings to compare
+        print(f"Original bitstring: {test_bits}")
+        print(f"Recovered bitstring: {recovered_bitstring}")
 
         # Compare
-        min_length = min(len(test_bits), len(recovered_bitstring))
-        errors = sum(1 for a, b in zip(test_bits[:min_length], recovered_bitstring[:min_length]) if a != b)
-        ber = errors / min_length
-
-        # Print results
-        print(f"Original bits length: {len(test_bits)}")
-        print(f"Recovered bits length: {len(recovered_bitstring)}")
-        print(f"Compared first {min_length} bits")
-        print(f"Bit errors: {errors}")
-        print(f"Bit Error Rate (BER): {ber:.6f}")
+        calculate_error_rate(test_bits, recovered_bitstring)
+        # Reset the demodulator for next use
+        enhanced_demod.reset()
     
-    test_wav_file()
-    # test_buffered_demodulator()
+    # test_wav_file()
+    test_buffered_demodulator()

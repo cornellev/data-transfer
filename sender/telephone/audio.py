@@ -28,7 +28,8 @@ def qam_modulate(points, fc=4000, fs=44100, symbol_rate=500):
         i = np.real(p)
         # Quadrature component (sine) 
         q = np.imag(p)
-        segment = i * np.cos(2 * np.pi * fc * time) - q * np.sin(2 * np.pi * fc * time)
+        # Changed sign to match decoder's expectation
+        segment = i * np.cos(2 * np.pi * fc * time) + q * (-np.sin(2 * np.pi * fc * time))
         audio_wave.extend(segment)
 
     return np.array(audio_wave, dtype=np.float32)
