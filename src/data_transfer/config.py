@@ -1,7 +1,3 @@
-"""
-Runtime configuration for the data transfer system.
-"""
-
 from __future__ import annotations
 
 import os

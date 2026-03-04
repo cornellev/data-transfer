@@ -1,8 +1,8 @@
-# Data Transfer | FA25
+# Data Transfer 
 
-Wireless data transfer system that serializes structured vehicle sensor data (JSON) using Protocol Buffers, transmits it via the chosen transmission method, then decodes it back into readable data to be visualized on the Race Engineer Dashboard during competition.  
+Wireless data transfer system that serializes structured vehicle sensor data (JSON) using Google Protocol Buffers, transmits it via the chosen transmission method, then decodes it back into readable data to be visualized on the Race Engineer Dashboard during competition.  
 
-Transmission Methods (as of Nov 2025):
+Transmission Methods:
 1. [minimodem](https://www.whence.com/minimodem/): Encodes the data into audio tones using Frequency-Key Shifting (FSK) modulation.
 2. UDP over Starlink 
 
@@ -10,77 +10,107 @@ Transmission Methods (as of Nov 2025):
 
 ## Installation
 
-Windows users: minimodem does not run natively on Windows. Please install WSL2 with Ubuntu and run this project inside the WSL terminal.
+Windows users: minimodem does not run natively on Windows. Please install WSL2 with Ubuntu and run this project inside the WSL terminal for modem mode.
 
 ```bash
 git clone https://github.com/cornellev/data-transfer.git
 cd data-transfer
+pip install -r requirements.txt
 ```
 
-Install dependencies:
+Install minimodem only if you plan to use modem mode:
 ```bash
 # macOS
 brew install minimodem
 
-# Windows/Linux (Ubuntu)
-sudo apt-get install minimodem
-
-pip install -r requirements.txt
+# Windows/Linux (Ubuntu/WSL)
+sudo apt-get update && sudo apt-get install -y minimodem
 ```
+
+---
+
+## Configuration
+
+Create your local environment file from the template:
+
+```bash
+cp .env.example .env
+```
+
+Set values in `.env` (or export equivalent environment variables):
+- `DATA_TRANSFER_BAUD`
+- `DATA_TRANSFER_UDP_HOST`
+- `DATA_TRANSFER_UDP_PORT`
+- `DATA_TRANSFER_SENDER_NUMBER`
+- `DATA_TRANSFER_RECEIVER_NUMBER`
+- `DATA_TRANSFER_MODEM_PORT`
+- `DATA_TRANSFER_MODEM_POWER_KEY`
+- `DATA_TRANSFER_MODEM_BAUD`
 
 ---
 
 ## How to Run
-```bash
-mode = 'udp' | 'modem' # Choose one 
+
+This repo uses a `src` layout, so set `PYTHONPATH=src` before running modules.
+
+### PowerShell
+```powershell
+$env:PYTHONPATH="src"
+python -m data_transfer.receiver.receiver --mode udp
+python -m data_transfer.sender.sender --mode udp
 ```
 
-#### Sending Data 
-Run the sender module to serialize a message and transmit it:
+### Bash/Zsh
 ```bash
-python -m sender.sender --mode mode
+export PYTHONPATH=src
+python -m data_transfer.receiver.receiver --mode udp
+python -m data_transfer.sender.sender --mode udp
 ```
 
-#### Receiving Data 
-Run the receiver module to listen for incoming data, decode it, and deserialize it:
-```bash
-python -m receiver.receiver --mode mode
-```
+Use `--mode modem` instead of `--mode udp` to transfer data via minimodem.
 
 ---
 
 ## Project Structure
+```text
+data-transfer/
+|-- src/                                  
+|   `-- data_transfer/                    
+|       |-- config.py                     # Runtime configuration for data transfer
+|       |-- hardware/                     
+|       |   |-- cellular_modem.py         # SIM7600 GPIO + serial control helper
+|       |   `-- __init__.py              
+|       |-- modes/                       
+|       |   |-- interface.py              
+|       |   |-- modem_mode.py             # minimodem transfer implementation
+|       |   |-- udp_mode.py               # UDP transfer implementation
+|       |   `-- __init__.py               
+|       |-- receiver/                     
+|       |   |-- receiver.py               # Receives and decodes data packets
+|       |   `-- __init__.py               
+|       |-- sender/                       
+|       |   |-- sender.py                 # Builds, serializes, and sends data pakets
+|       |   `-- __init__.py               
+|       |-- schema/                       # Generated protobuf Python runtime files
+|       |   |-- data_pb2.py               
+|       |   `-- __init__.py               
+|       `-- __init__.py                   
+|-- schema/                               # Protobuf source schema directory
+|   `-- data.proto                        
+|-- .env.example                          
+|-- requirements.txt                      
+`-- README.md                            
 ```
-DATA-TRANSFER/
-│
-├── modes/                 # Transmission modes 
-│   ├── interface.py
-│   ├── modem_mode.py
-|   ├── udp_mode.py
-│   └── __init__.py
-|
-├── receiver/              # Receiver code 
-│   └── receiver.py
-│
-├── schema/                # Protobuf schema definitions
-│   ├── data.proto
-│   ├── data_pb2.py
-│   └── __init__.py
-│
-├── sender/                # Sender code 
-│   └── sender.py
-│
-├── cellular_modem.py      # CellularModem class 
-├── config.py              # Data/voice call configurations
-├── README.md              
-├── requirements.txt       
-└── .gitignore             
-```
+
 ---
 
 ## Adding/Editing Protobuf Schemas
-This system uses [Protocol Buffers](https://protobuf.dev/getting-started/pythontutorial/) to define structured messages.
-To add or edit a schema, modify the `.proto` file in `/schema`, then regenerate the Python bindings:
+
+This system uses [Google Protocol Buffers](https://protobuf.dev/getting-started/pythontutorial/) to define structured messages.
+
+1. Edit `schema/data.proto`.
+2. Regenerate Python bindings into the runtime package:
+
 ```bash
-protoc --python_out=schema schema/data.proto
+protoc --python_out=src/data_transfer/schema schema/data.proto
 ```
