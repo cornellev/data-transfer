@@ -1,7 +1,7 @@
 import argparse, socket, time
-from ..schema import data_pb2
-from ..config import BAUD, END, MODEM_BAUD, MODEM_POWER_KEY, MODEM_SERIAL_PORT, START
-from ..modes import get_mode
+from schema import data_pb2
+from config import BAUD, END, MODEM_BAUD, MODEM_POWER_KEY, MODEM_SERIAL_PORT, START
+from modes import get_mode
 
 UDP_SOCKET_TIMEOUT_SECONDS = 0.5
 UDP_IDLE_EXIT_SECONDS = 2.0
@@ -43,7 +43,7 @@ def main() -> None:
     mode = get_mode(args.mode, baud=BAUD, bind_socket=True)
 
     if args.mode == 'modem':
-        from ..hardware.cellular_modem import CellularModem
+        from hardware.cellular_modem import CellularModem
         modem = CellularModem(
             power_key=MODEM_POWER_KEY,
             port=MODEM_SERIAL_PORT,

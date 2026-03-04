@@ -1,5 +1,7 @@
 import argparse, time
-from ..config import (
+import importlib.util
+from pathlib import Path
+from config import (
     BAUD,
     END,
     MODEM_BAUD,
@@ -8,17 +10,29 @@ from ..config import (
     RECEIVER_NUMBER,
     START,
 )
-from ..schema import data_pb2
-from ..modes import get_mode
+from schema import data_pb2
+from modes import get_mode
 
 # If the SHM reader is unavailable, send this many dummy packets before exiting.
 MAX_DUMMY_PACKETS = 10
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SHM_READER_FILE = REPO_ROOT / "lib" / "uc26_sensor_reader" / "read_shm.py"
+
 try:
-    from read_shm import SensorShmReader
+    if not SHM_READER_FILE.exists():
+        raise FileNotFoundError(f"{SHM_READER_FILE} not found")
+
+    shm_spec = importlib.util.spec_from_file_location("uc26_sensor_reader.read_shm", SHM_READER_FILE)
+    if shm_spec is None or shm_spec.loader is None:
+        raise ImportError(f"Could not load module spec from {SHM_READER_FILE}")
+
+    shm_module = importlib.util.module_from_spec(shm_spec)
+    shm_spec.loader.exec_module(shm_module)
+    SensorShmReader = shm_module.SensorShmReader
     SHM_IMPORT_ERROR = None
 except Exception as e:
-    # If SHM reader is unavailable, fall back to dummy data.
+    # If the submodule reader is unavailable, fall back to dummy data.
     SensorShmReader = None
     SHM_IMPORT_ERROR = e
 
@@ -130,7 +144,7 @@ def main() -> None:
                 time.sleep(0.001)
     
     if args.mode == 'modem':
-        from ..hardware.cellular_modem import CellularModem
+        from hardware.cellular_modem import CellularModem
         modem = CellularModem(
             power_key=MODEM_POWER_KEY,
             port=MODEM_SERIAL_PORT,
@@ -158,4 +172,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

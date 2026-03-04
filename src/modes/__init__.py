@@ -1,4 +1,4 @@
-from ..config import BAUD, UDP_HOST, UDP_PORT
+from config import BAUD, UDP_HOST, UDP_PORT
 from .interface import ModeInterface
 from .modem_mode import ModemMode
 from .udp_mode import UDPMode

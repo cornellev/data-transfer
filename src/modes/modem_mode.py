@@ -1,5 +1,5 @@
 import subprocess, time
-from ..config import START, END, BAUD
+from config import START, END, BAUD
 from .interface import ModeInterface
 
 class ModemMode(ModeInterface):
