@@ -1,10 +1,16 @@
-# Wireless Telemetry Data Transfer
+# Redundant Telemetry Protocol
 
-A wireless telemetry system that converts vehicle sensor data (JSON) into Protocol Buffer packets, transmits them via the selected communication method, and decodes the data for visualization on the Race Engineer Dashboard.
+A backup wireless telemetry protocol that converts vehicle sensor data (JSON) into Protocol Buffer packets, transmits them via the selected communication method, and decodes the data for visualization on the Race Engineer Dashboard.
 
 Transmission Methods:
 1. [minimodem](https://www.whence.com/minimodem/): Encodes the data into audio tones using Frequency-Key Shifting (FSK) modulation.
-2. UDP over Starlink 
+2. UDP over Starlink (**testing only; not for primary telemetry**)
+
+## Important UDP Note
+
+UDP support remains in this repository for testing and validation only.
+
+For competition, ROS is the primary telemetry method; use UDP only for local testing and development.
 
 ---
 
