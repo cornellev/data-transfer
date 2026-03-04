@@ -1,10 +1,42 @@
 syntax = "proto3";
 
+message Power {
+    uint32 ts = 1;
+    float current = 2;
+    float voltage = 3;
+}
+
+message Steering {
+    uint32 ts = 1;
+    float brake_pressure = 2;
+    float turn_angle = 3;
+}
+
+message RpmAxle {
+    uint32 ts = 1;
+    float rpm_left = 2;
+    float rpm_right = 3;
+}
+
+message Gps {
+    uint32 ts = 1;
+    float gps_lat = 2;
+    float gps_long = 3;
+}
+
+message Motor {
+    uint32 ts = 1;
+    float rpm = 2;
+    float throttle = 3;
+}
+
 message Sensors {
-    float voltage = 1;  
-    float draw = 2;      
-    float gps_lat = 3;   
-    float gps_long = 4; 
-    float velocity = 5; 
-    float throttle = 6;  
+    uint32 seq = 1;
+    uint64 global_ts = 2;
+    Power power = 3;
+    Steering steering = 4;
+    RpmAxle rpm_front = 5;
+    RpmAxle rpm_back = 6;
+    Gps gps = 7;
+    Motor motor = 8;
 }

@@ -7,10 +7,10 @@ class ModemMode(ModeInterface):
     Mode that uses minimodem to send/receive data via audio tones.
     """
 
-    def __init__(self, baud=BAUD):
+    def __init__(self, baud=BAUD) -> None:
         self.baud = baud
 
-    def send(self, data: bytes):
+    def send(self, data: bytes) -> None:
         proc = subprocess.Popen(
             ["minimodem", "--tx", str(self.baud)],
             stdin=subprocess.PIPE,
@@ -29,7 +29,7 @@ class ModemMode(ModeInterface):
                 proc.stdin.close()
             proc.wait()
 
-    def receive(self):
+    def receive(self) -> bytes | None:
         proc = subprocess.Popen(
             ["minimodem", "--rx", "-8", str(self.baud)],
             stdout=subprocess.PIPE
@@ -49,7 +49,7 @@ class ModemMode(ModeInterface):
                 raw = raw[end+1:]
                 return packet
 
-    def close(self):
+    def close(self) -> None:
         """
         No persistent resources to close. 
         """

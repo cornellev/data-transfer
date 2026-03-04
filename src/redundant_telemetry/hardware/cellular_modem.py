@@ -3,7 +3,7 @@ import serial
 import time
 
 class CellularModem:
-    def __init__(self, power_key=6, port="/dev/ttyS0", baud=115200):
+    def __init__(self, power_key=6, port="/dev/ttyS0", baud=115200) -> None:
         """
         Initialize the modem.
         - power_key: GPIO pin connected to SIM7600 PWRKEY
@@ -18,7 +18,7 @@ class CellularModem:
         GPIO.setwarnings(False)
         GPIO.setup(self.power_key, GPIO.OUT)
 
-    def power_on(self):
+    def power_on(self) -> None:
         """
         Turn on the SIM7600.
         """
@@ -29,7 +29,7 @@ class CellularModem:
         self.ser.flushInput()
         print("SIM7600 is powered on.")
 
-    def power_down(self):
+    def power_down(self) -> None:
         """
         Turn off the SIM7600.
         """
@@ -39,7 +39,7 @@ class CellularModem:
         time.sleep(18)
         print("SIM7600 is powered off.")
     
-    def send_at(self, command, back, timeout=1):
+    def send_at(self, command, back, timeout=1) -> bool:
         """
         Send an AT command and check for the expected response.
         """
@@ -57,19 +57,19 @@ class CellularModem:
         print(resp.strip())
         return True
 
-    def dial(self, number):
+    def dial(self, number) -> bool:
         """
         Dial a number (voice call).
         """
         return self.send_at(f"ATD{number};", "OK", 2)
 
-    def answer_call(self):
+    def answer_call(self) -> bool:
         """
         Answer an incoming call.
         """
         return self.send_at("ATA", "OK", 2)
 
-    def hangup(self):
+    def hangup(self) -> None:
         """
         Hang up an active call.
         """
@@ -77,7 +77,7 @@ class CellularModem:
         time.sleep(1)
         print("Call disconnected.")
 
-    def close(self):
+    def close(self) -> None:
         """
         Cleanup resources (serial and GPIO).
         """

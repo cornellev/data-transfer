@@ -1,14 +1,18 @@
-import argparse, time
+import argparse, socket, time
 from ..schema import data_pb2
 from ..config import BAUD, END, MODEM_BAUD, MODEM_POWER_KEY, MODEM_SERIAL_PORT, START
 from ..modes import get_mode
 
-def process_packet(raw: bytes):
+UDP_SOCKET_TIMEOUT_SECONDS = 0.5
+UDP_IDLE_EXIT_SECONDS = 2.0
+
+def process_packet(raw: bytes) -> None:
     """
     Decode and print a protobuf packet. 
     """
     if not raw:
         return
+    # Packets may arrive already extracted (Minimodem) or as framed bytes (UDP).
     start_pos = raw.find(START)
     if start_pos == -1:
         packet = raw
@@ -26,8 +30,8 @@ def process_packet(raw: bytes):
     except Exception as e:
         print("Failed to parse packet:", e)
 
-def main():
-    parser = argparse.ArgumentParser(description="Receive data via UDP or Modem")
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Receive data via Minimodem or UDP")
     parser.add_argument(
         '--mode', 
         choices=['udp', 'modem'], 
@@ -61,11 +65,27 @@ def main():
             modem.close()
             mode.close()
     elif args.mode == 'udp':
-        try: 
+        sock = getattr(mode, "sock", None)
+        if sock is not None:
+            # Periodic timeout lets us exit after sender stops.
+            sock.settimeout(UDP_SOCKET_TIMEOUT_SECONDS)
+
+        last_rx_time = time.monotonic()
+        try:
             while True:
-                packet = mode.receive()
+                try:
+                    packet = mode.receive()
+                except socket.timeout:
+                    # Exit once we've been idle for long enough (e.g. if the dummy sender finished).
+                    if time.monotonic() - last_rx_time >= UDP_IDLE_EXIT_SECONDS:
+                        print("No UDP packets received recently; exiting receiver.")
+                        break
+                    continue
+
                 if not packet:
-                    break
+                    continue
+
+                last_rx_time = time.monotonic()
                 process_packet(packet)
                 time.sleep(0.001)
         finally:

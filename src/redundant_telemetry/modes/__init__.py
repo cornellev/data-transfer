@@ -1,4 +1,5 @@
 from ..config import BAUD, UDP_HOST, UDP_PORT
+from .interface import ModeInterface
 from .modem_mode import ModemMode
 from .udp_mode import UDPMode
 
@@ -8,7 +9,7 @@ def get_mode(
         bind_socket: bool = False,
         ip: str | None = None,
         port: int | None = None,
-):
+) -> ModeInterface:
     baud = BAUD if baud is None else baud
     ip = UDP_HOST if ip is None else ip
     port = UDP_PORT if port is None else port
