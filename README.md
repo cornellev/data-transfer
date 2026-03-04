@@ -1,6 +1,6 @@
-# Data Transfer 
+# Wireless Telemetry Data Transfer
 
-Wireless data transfer system that serializes structured vehicle sensor data (JSON) using Google Protocol Buffers, transmits it via the chosen transmission method, then decodes it back into readable data to be visualized on the Race Engineer Dashboard during competition.  
+A wireless telemetry system that converts vehicle sensor data (JSON) into Protocol Buffer packets, transmits them via the selected communication method, and decodes the data for visualization on the Race Engineer Dashboard.
 
 Transmission Methods:
 1. [minimodem](https://www.whence.com/minimodem/): Encodes the data into audio tones using Frequency-Key Shifting (FSK) modulation.
