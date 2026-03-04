@@ -1,7 +1,7 @@
 import argparse, time
-import schema.data_pb2 as data_pb2 
-from config import START, END, BAUD
-from modes import get_mode 
+from ..schema import data_pb2
+from ..config import BAUD, END, MODEM_BAUD, MODEM_POWER_KEY, MODEM_SERIAL_PORT, START
+from ..modes import get_mode
 
 def process_packet(raw: bytes):
     """
@@ -9,9 +9,16 @@ def process_packet(raw: bytes):
     """
     if not raw:
         return
-    start = raw.find(START) + 1
-    end = raw.find(END, start)
-    packet = raw[start:end]
+    start_pos = raw.find(START)
+    if start_pos == -1:
+        packet = raw
+    else:
+        start = start_pos + 1
+        end = raw.find(END, start)
+        if end == -1:
+            print("Malformed frame: START marker found without END marker.")
+            return
+        packet = raw[start:end]
     try: 
         msg = data_pb2.Sensors()
         msg.ParseFromString(packet)
@@ -32,8 +39,12 @@ def main():
     mode = get_mode(args.mode, baud=BAUD, bind_socket=True)
 
     if args.mode == 'modem':
-        from cellular_modem import CellularModem
-        modem = CellularModem(power_key=6, port="/dev/ttyS0", baud=115200)
+        from ..hardware.cellular_modem import CellularModem
+        modem = CellularModem(
+            power_key=MODEM_POWER_KEY,
+            port=MODEM_SERIAL_PORT,
+            baud=MODEM_BAUD,
+        )
         try:
             modem.power_on()
             if modem.answer_call():

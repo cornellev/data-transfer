@@ -1,6 +1,5 @@
 import subprocess, time
-from schema import data_pb2
-from config import START, END, BAUD
+from ..config import START, END, BAUD
 from .interface import ModeInterface
 
 class ModemMode(ModeInterface):

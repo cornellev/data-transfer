@@ -1,7 +1,15 @@
 import argparse, time
-from config import BAUD, START, END, RECEIVER_NUMBER
-from schema import data_pb2
-from modes import get_mode
+from ..config import (
+    BAUD,
+    END,
+    MODEM_BAUD,
+    MODEM_POWER_KEY,
+    MODEM_SERIAL_PORT,
+    RECEIVER_NUMBER,
+    START,
+)
+from ..schema import data_pb2
+from ..modes import get_mode
 
 def dummy_packet(count: int):
     """
@@ -41,8 +49,12 @@ def main():
             time.sleep(0.001)
     
     if args.mode == 'modem':
-        from cellular_modem import CellularModem
-        modem = CellularModem(power_key=6, port="/dev/ttyS0", baud=115200)
+        from ..hardware.cellular_modem import CellularModem
+        modem = CellularModem(
+            power_key=MODEM_POWER_KEY,
+            port=MODEM_SERIAL_PORT,
+            baud=MODEM_BAUD,
+        )
         try:
             modem.power_on()
             if modem.dial(RECEIVER_NUMBER):

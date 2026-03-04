@@ -84,6 +84,3 @@ To add or edit a schema, modify the `.proto` file in `/schema`, then regenerate 
 ```bash
 protoc --python_out=schema schema/data.proto
 ```
-
-
-
