@@ -2,22 +2,23 @@
 
 A backup wireless telemetry protocol that converts vehicle sensor data (JSON) into Protocol Buffer packets, transmits them via the selected communication method, and decodes the data for visualization on the Race Engineer Dashboard.
 
-## Important UDP Note
+### Transmission Modes 
+1. [Minimodem](https://www.whence.com/minimodem/) (encodes data into audio tones using Frequency-Shift Keying modulation)
+2. UDP over Starlink (see below)
 
-UDP support remains in this repository for testing and validation only.
+### Important UDP Note
 
-For competition, ROS is the primary telemetry method; use UDP only for local testing and development.
+UDP support remains in this repository for **local testing and development only**.
 
-Transmission methods:
-1. [minimodem](https://www.whence.com/minimodem/): Encodes data into audio tones using FSK modulation.
-2. UDP over Starlink (**testing only; not for primary telemetry**)
+For competition, ROS is the primary telemetry method.
 
 ---
 
 ## Installation
 
-Windows users: minimodem does not run natively on Windows. Install WSL2 with Ubuntu and run this project in the WSL terminal for modem mode.
+**WINDOWS USERS:** Minimodem does not run natively on Windows. Install WSL2 with Ubuntu and run this project in the WSL terminal if you plan to use modem mode. 
 
+Clone repo with submodules: 
 ```bash
 git clone --recurse-submodules https://github.com/cornellev/redundant-telemetry.git
 cd redundant-telemetry
@@ -37,7 +38,7 @@ Install Python dependencies:
 pip install -r requirements.txt
 ```
 
-Install minimodem if you plan to use modem mode:
+If you plan to use modem mode, install Minimodem: 
 ```bash
 # macOS
 brew install minimodem
@@ -46,19 +47,13 @@ brew install minimodem
 sudo apt-get update && sudo apt-get install -y minimodem
 ```
 
-Note: `sender.py` requires the SHM reader class from the [UC26 Sensor Reader repo](https://github.com/cornellev/uc26_sensor_reader.git), included as a git submodule (configured in `.gitmodules`). Clone with submodules as shown above before running.
+Note: `sender.py` requires the SHM reader class from the [UC26 Sensor Reader repo](https://github.com/cornellev/uc26_sensor_reader.git), included as a git submodule (configured in `.gitmodules`). Clone with submodules as shown above before running the project.
 
 ---
 
 ## Configuration
 
-Create your local environment file from the template:
-
-```bash
-cp .env.example .env
-```
-
-Set values in `.env` (or export equivalent environment variables):
+Create your local environment file from the template and set corresponding values in `.env`:
 - `DATA_TRANSFER_BAUD`
 - `DATA_TRANSFER_UDP_HOST`
 - `DATA_TRANSFER_UDP_PORT`
@@ -134,6 +129,11 @@ redundant-telemetry/
 |-- requirements.txt
 `-- README.md
 ```
+
+---
+
+## System Diagram 
+![System Diagram](docs/system_diagram.png)
 
 ---
 
