@@ -1,6 +1,4 @@
 import argparse, time
-import importlib.util
-from pathlib import Path
 from config import (
     BAUD,
     END,
@@ -12,29 +10,7 @@ from config import (
 )
 from schema import data_pb2
 from modes import get_mode
-
-# If the SHM reader is unavailable, send this many dummy packets before exiting.
-MAX_DUMMY_PACKETS = 10
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-SHM_READER_FILE = REPO_ROOT / "lib" / "uc26_sensor_reader" / "read_shm.py"
-
-try:
-    if not SHM_READER_FILE.exists():
-        raise FileNotFoundError(f"{SHM_READER_FILE} not found")
-
-    shm_spec = importlib.util.spec_from_file_location("uc26_sensor_reader.read_shm", SHM_READER_FILE)
-    if shm_spec is None or shm_spec.loader is None:
-        raise ImportError(f"Could not load module spec from {SHM_READER_FILE}")
-
-    shm_module = importlib.util.module_from_spec(shm_spec)
-    shm_spec.loader.exec_module(shm_module)
-    SensorShmReader = shm_module.SensorShmReader
-    SHM_IMPORT_ERROR = None
-except Exception as e:
-    # If the submodule reader is unavailable, fall back to dummy data.
-    SensorShmReader = None
-    SHM_IMPORT_ERROR = e
+from uc26_sensor_reader.read_shm import SensorShmReader
 
 def _build_message_from_dict(sensor_data: dict) -> data_pb2.Sensors:
     return data_pb2.Sensors(
@@ -72,20 +48,6 @@ def _build_message_from_dict(sensor_data: dict) -> data_pb2.Sensors:
         ),
     )
 
-def _dummy_sensor_dict(count: int) -> dict:
-    base = float(count)
-    return {
-        "seq": count,
-        "global_ts": int(time.time_ns()),
-        "power": {"ts": count, "current": 2.0 + base, "voltage": 1.0 + base},
-        "steering": {"ts": count, "brake_pressure": 3.0 + base, "turn_angle": 4.0 + base},
-        "rpm_front": {"ts": count, "rpm_left": 5.0 + base, "rpm_right": 6.0 + base},
-        "rpm_back": {"ts": count, "rpm_left": 7.0 + base, "rpm_right": 8.0 + base},
-        "gps": {"ts": count, "gps_lat": 42.444 + (0.0001 * base), "gps_long": -76.501 + (0.0001 * base)},
-        "motor": {"ts": count, "rpm": 9.0 + base, "throttle": 10.0 + base},
-    }
-
-
 def packet_from_sensor_dict(sensor_data: dict) -> bytes:
     """
     Serialize one sensor payload with START/END framing markers.
@@ -105,43 +67,26 @@ def main() -> None:
 
     mode = get_mode(args.mode, baud=BAUD, bind_socket=False)
 
-    shm_reader = None
-    use_dummy = True
-    if SensorShmReader is None:
-        print(f"SHM reader import failed: ({SHM_IMPORT_ERROR}); using dummy data instead.")
-    else:
-        try:
-            shm_reader = SensorShmReader()
-            use_dummy = not shm_reader.available
-            if use_dummy:
-                print("SHM reader is unavailable; using dummy data instead.")
-        except Exception as e:
-            print(f"Failed to initialize SHM reader: ({e}); using dummy data instead.")
-            use_dummy = True
+    shm_reader = SensorShmReader()
+    if not shm_reader.available:
+        raise RuntimeError(
+            "Sensor SHM reader is unavailable. Ensure uc26_sensor_reader is initialized and producing data."
+        )
 
     def send_loop() -> None:
         """
-        Stream SHM packets when available; otherwise send finite dummy packets.
+        Stream SHM packets.
         """
-        if use_dummy:
-            count = 0
-            while count < MAX_DUMMY_PACKETS:
-                packet = packet_from_sensor_dict(_dummy_sensor_dict(count))
-                mode.send(packet)
-                print(f'Dummy packet #{count} sent.')
-                count += 1
+        while True:
+            sensor_data = shm_reader.read_snapshot_dict()
+            if sensor_data is None:
+                # Sleep briefly when no SHM snapshot is ready.
                 time.sleep(0.001)
-        else: 
-            while True:
-                sensor_data = shm_reader.read_snapshot_dict()
-                if sensor_data is None:
-                    # Sleep briefly when no SHM snapshot is ready.
-                    time.sleep(0.001)
-                    continue
-                packet = packet_from_sensor_dict(sensor_data)
-                mode.send(packet)
-                print(f"SHM packet seq={sensor_data['seq']} sent.")
-                time.sleep(0.001)
+                continue
+            packet = packet_from_sensor_dict(sensor_data)
+            mode.send(packet)
+            print(f"SHM packet seq={sensor_data['seq']} sent.")
+            time.sleep(0.001)
     
     if args.mode == 'modem':
         from hardware.cellular_modem import CellularModem

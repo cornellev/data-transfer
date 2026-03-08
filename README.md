@@ -90,8 +90,7 @@ Use `--mode modem` instead of `--mode udp` to transfer data via minimodem.
 ## Runtime Behavior
 
 Sender behavior:
-- Loads `SensorShmReader` from submodule file `lib/uc26_sensor_reader/read_shm.py` to read SHM snapshots.
-- Current implementation includes a finite dummy fallback (`MAX_DUMMY_PACKETS`) if SHM import/init is unavailable.
+- Continuously streams protobuf packets using the data from `SensorShmReader`.
 
 Receiver behavior:
 - Modem mode: powers on the SIM7600, answers an incoming call, receives/decodes packets in a loop, then hangs up.
@@ -116,13 +115,13 @@ redundant-telemetry/
 |   |   |-- receiver.py                   # Receives packets and decodes protobuf frames
 |   |   `-- __init__.py
 |   |-- sender/
-|   |   |-- sender.py                     # Reads SHM (or dummy), serializes, and sends
+|   |   |-- sender.py                     # Reads SHM, serializes, and sends
 |   |   `-- __init__.py
 |   |-- schema/                           # Generated protobuf Python runtime files
 |   |   |-- data_pb2.py
 |   |   `-- __init__.py
 |   `-- __init__.py
-|-- .gitmodules                           # Git submodule configuration
+|-- .gitmodules                           
 |-- schema/                               # Protobuf source schema directory
 |   `-- data.proto
 |-- .env.example
